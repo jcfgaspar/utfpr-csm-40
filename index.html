@@ -5,11 +5,11 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Document</title>
-  <script src="url.js"></script>
   <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-  <script type="text/javascript" src="charts.js"></script>
   <script type="text/javascript" src="Table.view.js"></script>
-
+  <script type="text/javascript" src="Charts.view.js"></script>
+  <script type="text/javascript" src="Bacen.js"></script>
+  <script type="text/javascript" src="ExchangeRate.js"></script>
 </head>
 <body>
 
@@ -19,16 +19,9 @@
   <span>Data final</span>
   <input id="data_final_cotacao" type="date">
 
-  <input list="moeda_nomes" name="browser" id="nome_moeda">
-  <datalist id="moeda_nomes">
-    <option value="EUR">Euro</option>
-    <option value="USD">Dólar Americano</option>
-    <option value="GBP">Libra Esterlina</option>
-  </datalist>
-
   <button id="botao_cotacao"> Cotar</button>
 
-  <div id="curve_chart" style="width: 900px; height: 500px"></div>
+  <div id="chart" style="width: 900px; height: 500px"></div>
   <div id="tabela"></div>
 
   <script>
@@ -36,48 +29,41 @@
     // Pega o valor do input 
     const getValueByTagId = id => document.getElementById(id).value;
 
-    // Converter o json para o formato que o gráfico do google aceita    
-    const convertToCharts = json => json.map(objeto => [objeto.dataHoraCotacao, objeto.cotacaoVenda])
-
     const converterData = date => {
       // converte um string de yyyy-mm-dd para mm-dd-yyyy
       const [ano, mes, dia] = date.split("-")
       return [mes, dia, ano].join("-")
     }
-    
-    const initializeFetch = _ => {
+
+    const initializeFetch = async _ => {
       // Fução principal  
-      const moeda = getValueByTagId("nome_moeda")
       const data_final = getValueByTagId("data_final_cotacao")
       const data_inicial = getValueByTagId("data_inicial_cotacao")
       const data_final_convertida = converterData(data_final)
       const data_inicial_convertida = converterData(data_inicial)
       
-      const url = getUrl()
-        .replace("simbolo_moeda", moeda)
-        .replace("cotacao_final", data_final_convertida)
-        .replace("cotacao_inicial", data_inicial_convertida)
-      
-      fetchExchangeRate(url)
+      const dados = await new ExchangeRate()
+        .setPeriodos(data_inicial_convertida, data_final_convertida)
+        .setTaxasDeCambio("EUR", "USD", "GBP")
+        .getDados();
+
+      drawTable("tabela", dados)
+      drawCharts("chart", dados)
     }
 
-    const fetchExchangeRate = async url => {
-      // Busca os dados no endPoint, similiar ao XMLRequest
-      const response = await fetch(url)
-      const dados = await response.json()
-      const dadosFiltrados = convertToCharts(dados.value)
-      drawCharts(dadosFiltrados)
-      drawTable("tabela", dadosFiltrados)
-    }
-
-    const drawCharts = (dados) => {
-
-      draw([["data", "cotacao"],...dados])
+    const drawCharts = (tagId, dados) => {
+      const [nomes, valores] = dados
+      const charts = new Charts();
+      charts.setColumnsName(nomes)
+      charts.setDadosAtBody(valores)
+      charts.draw(tagId);
     }
 
     const drawTable = (tagId, dados) => {
+      const [nomes, valores] = dados
       const tabela = new Table();
-      tabela.setDadosAtBody(dados)
+      tabela.setColumnsName(nomes)
+      tabela.setDadosAtBody(valores)
       tabela.draw(tagId);
     }
 
